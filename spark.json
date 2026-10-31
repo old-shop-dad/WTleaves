@@ -1,0 +1,25 @@
+{
+  "app": {
+    "id": "app_17fyc1epzu5",
+    "online_url": "https://wcnvx50a4ni9.doubaoapps.com/app/app_17fyc1epzu5"
+  },
+  "build": {
+    "command": [
+      "npm",
+      "run",
+      "build"
+    ],
+    "output": "dist/output",
+    "output_cdn": "dist/output_resource"
+  },
+  "dev": {
+    "command": [
+      "npm",
+      "run",
+      "dev"
+    ],
+    "port": 31251
+  },
+  "stack": "react-standard-webapp",
+  "version": "0.1.3"
+}

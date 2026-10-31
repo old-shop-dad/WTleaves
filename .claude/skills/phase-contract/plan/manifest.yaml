@@ -1,0 +1,72 @@
+project: StudyDesk
+goal: 备份后按阶段完成 v1.1.0 稳定性 / 性能 / 契约同步迭代
+baseline_version: 1.0.0
+target_version: 1.1.0
+phases:
+  - id: 00-baseline
+    name: 冻结基线（备份 + git tag）
+    depends_on: []
+    allow_paths: ["backups/**", ".gitignore"]
+    verify: ["备份目录 190 文件 SHA-256 全部一致", "git tag v1.0.0-baseline"]
+  - id: 01-green-baseline
+    name: 恢复静态检查绿灯
+    depends_on: ["00-baseline"]
+    allow_paths: ["src/pages/DocsPage/**", "src/modules/**", "src/pages/ChatPage/**", "src/pages/FocusPage/**", "src/pages/HabitsPage/**", "src/pages/SettingsPage/**"]
+    forbid_paths: ["src/db/schema.ts", "src/db/types.ts", "src/app.tsx", "src/components/ui/**"]
+    verify: ["npm run typecheck", "npm run lint:eslint"]
+  - id: 02-perf-pwa
+    name: PWA 预缓存修复 + 文档页重依赖按需加载
+    depends_on: ["01-green-baseline"]
+    allow_paths: ["vite.config.ts", "src/pages/DocsPage/**"]
+    forbid_paths: ["src/db/**", "src/components/ui/**"]
+    verify: ["npm run build", "构建日志 precache > 3 entries", "index chunk < 800 kB"]
+  - id: 03-ui-tokens
+    name: 玻璃材质 token 化收口
+    depends_on: ["01-green-baseline"]
+    allow_paths: ["src/index.css", "src/tailwind-theme.css", "src/components/glass/**"]
+    forbid_paths: ["src/db/**", "src/components/ui/**"]
+    verify: ["npm run typecheck", "npm run build"]
+  - id: 04-contract-docs
+    name: 文档 / 契约同步 + 版本号 1.1.0
+    depends_on: ["02-perf-pwa", "03-ui-tokens"]
+    allow_paths: ["AGENTS.md", "README.md", "package.json", "package-lock.json", "StudyDesk功能文档.md", ".claude/skills/**", "CHANGELOG.md"]
+    forbid_paths: ["src/db/schema.ts"]
+    verify: ["package.json version == 1.1.0", "仓库内不再出现 22 张表 / 15 个工具的过期描述"]
+  - id: 05-review-gate
+    name: 质量闸门 + 回归验证
+    depends_on: ["04-contract-docs"]
+    allow_paths: ["*"]
+    verify: ["npm run typecheck", "npm run lint:eslint", "npm run build", "dev server HTTP 200"]
+  - id: 06-week-engine
+    name: 周次引擎与今日/课表口径统一
+    depends_on: ["05-review-gate"]
+    allow_paths: ["src/lib/semester.ts", "src/lib/schedule/**", "src/db/aggregate/today.ts", "src/db/types.ts", "src/pages/SchedulePage/**", "src/pages/SettingsPage/SemesterDialog.tsx", "tests/**"]
+    forbid_paths: ["src/db/schema.ts", "src/components/ui/**"]
+    verify: ["npm run typecheck", "npm run test:schedule"]
+  - id: 07-import-pipeline
+    name: 课表导入管线重写（网格/扁平/WakeUp CSV/AI）
+    depends_on: ["06-week-engine"]
+    allow_paths: ["src/modules/schedule/**", "src/pages/SchedulePage/CourseImportDialog.tsx", "src/db/repositories/schedule.ts", "tests/**"]
+    forbid_paths: ["src/db/schema.ts"]
+    verify: ["npm run typecheck", "npm run test:schedule"]
+  - id: 08-timetable-ui
+    name: 周视图按分钟重做 + 移动端议程 + token 化
+    depends_on: ["06-week-engine"]
+    allow_paths: ["src/pages/SchedulePage/**"]
+    forbid_paths: ["src/db/**", "src/components/ui/**"]
+    verify: ["npm run typecheck", "npm run build"]
+  - id: 09-overrides
+    name: 本周停课/调课/补课入口
+    depends_on: ["07-import-pipeline", "08-timetable-ui"]
+    allow_paths: ["src/pages/SchedulePage/**", "src/db/repositories/schedule.ts", "src/db/aggregate/today.ts", "src/db/types.ts"]
+    verify: ["npm run typecheck", "npm run test:schedule"]
+  - id: 10-ics-share-reminders
+    name: ICS 导入导出 + 分享图 + 上课提醒 + 作息设置
+    depends_on: ["09-overrides"]
+    allow_paths: ["src/modules/schedule/ics.ts", "src/lib/schedule/**", "src/pages/SchedulePage/**", "src/pages/SettingsPage/**", "src/components/Layout.tsx", "tests/**"]
+    verify: ["npm run typecheck", "npm run test:schedule", "npm run build"]
+  - id: 11-schedule-quality-gate
+    name: 课表模块质量闸门
+    depends_on: ["10-ics-share-reminders"]
+    allow_paths: ["*"]
+    verify: ["npm run typecheck", "npm run lint:eslint", "npm run build", "npm run test:schedule"]
